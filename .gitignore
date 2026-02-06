@@ -30,3 +30,7 @@ Thumbs.db
 
 # === Crash & temp ===
 *.stackdump
+
+.vsconfig
+ignore.conf
+
