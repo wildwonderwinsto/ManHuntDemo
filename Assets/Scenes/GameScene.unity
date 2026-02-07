@@ -788,7 +788,7 @@ MonoBehaviour:
       - m_Target: {fileID: 1175416986}
         m_TargetAssemblyTypeName: ManhuntGame.Networking.Core.NetworkManagerController,
           Assembly-CSharp
-        m_MethodName: StartServer
+        m_MethodName: StartHost
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -2245,21 +2245,13 @@ PrefabInstance:
       propertyPath: GlobalObjectIdHash
       value: 1021562930
       objectReference: {fileID: 0}
-    - target: {fileID: 3562054453705334199, guid: 15f062bdd99ee064aae0c69144bc66eb, type: 3}
-      propertyPath: InScenePlacedSourceGlobalObjectIdHash
-      value: 292676444
-      objectReference: {fileID: 0}
-    - target: {fileID: 4300115548883305159, guid: 15f062bdd99ee064aae0c69144bc66eb, type: 3}
-      propertyPath: showConsoleStats
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4300115548883305159, guid: 15f062bdd99ee064aae0c69144bc66eb, type: 3}
-      propertyPath: showOnScreenStats
-      value: 0
-      objectReference: {fileID: 0}
     - target: {fileID: 7357582596491454735, guid: 15f062bdd99ee064aae0c69144bc66eb, type: 3}
       propertyPath: m_Name
       value: Player
+      objectReference: {fileID: 0}
+    - target: {fileID: 7357582596491454735, guid: 15f062bdd99ee064aae0c69144bc66eb, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
