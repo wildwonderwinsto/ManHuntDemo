@@ -1,11 +1,12 @@
-using UnityEngine;
+﻿using UnityEngine;
 using Unity.Netcode;
+using Unity.Netcode.Transports.UTP;
 
 namespace ManhuntGame.Networking.Core
 {
     /// <summary>
-    /// Controls NetworkManager lifecycle and provides UI hooks for starting/stopping network sessions.
-    /// This is the entry point for all multiplayer functionality.
+    /// Enhanced NetworkManager controller with automatic port conflict resolution.
+    /// Now includes port synchronization for clients.
     /// </summary>
     public class NetworkManagerController : MonoBehaviour
     {
@@ -13,10 +14,23 @@ namespace ManhuntGame.Networking.Core
         [Tooltip("Maximum number of players allowed in a session (1 Runner + 3-4 Hunters)")]
         [SerializeField] private int maxPlayers = 5;
 
+        [Header("Port Configuration")]
+        [Tooltip("Starting port to try (default: 7777)")]
+        [SerializeField] private ushort basePort = 7777;
+
+        [Tooltip("How many ports to try if base port is busy")]
+        [SerializeField] private int portRetryAttempts = 5;
+
+        [Header("Client Configuration")]
+        [Tooltip("Server address for clients to connect to (127.0.0.1 for localhost)")]
+        [SerializeField] private string serverAddress = "127.0.0.1";
+
         [Header("Debug Settings")]
         [SerializeField] private bool enableDebugLogs = true;
 
         private NetworkManager m_NetworkManager;
+        private UnityTransport m_UnityTransport;
+        private ushort m_CurrentPort;
 
         #region Unity Lifecycle
 
@@ -33,10 +47,23 @@ namespace ManhuntGame.Networking.Core
                 return;
             }
 
+            // Cache UnityTransport reference
+            m_UnityTransport = GetComponent<UnityTransport>();
+            if (m_UnityTransport == null)
+            {
+                Debug.LogError("[NetworkManagerController] UnityTransport component not found! " +
+                             "Please add UnityTransport to the NetworkManager GameObject.");
+                enabled = false;
+                return;
+            }
+
             // Subscribe to connection events
             m_NetworkManager.OnServerStarted += OnServerStarted;
             m_NetworkManager.OnClientConnectedCallback += OnClientConnected;
             m_NetworkManager.OnClientDisconnectCallback += OnClientDisconnected;
+
+            // Set initial port
+            m_CurrentPort = basePort;
         }
 
         private void OnDestroy()
@@ -55,7 +82,7 @@ namespace ManhuntGame.Networking.Core
         #region Public Methods (Call from UI)
 
         /// <summary>
-        /// Starts a game as Host (Server + Client combined).
+        /// Starts a game as Host (Server + Client combined) with automatic port retry.
         /// Use this for local testing or when one player hosts.
         /// </summary>
         public void StartHost()
@@ -66,12 +93,12 @@ namespace ManhuntGame.Networking.Core
                 return;
             }
 
-            LogDebug("Starting Host...");
-            m_NetworkManager.StartHost();
+            LogDebug("Starting Host with automatic port detection...");
+            TryStartHostWithPortRetry();
         }
 
         /// <summary>
-        /// Starts a dedicated server (no local player).
+        /// Starts a dedicated server (no local player) with automatic port retry.
         /// Use this for dedicated server builds.
         /// </summary>
         public void StartServer()
@@ -82,13 +109,13 @@ namespace ManhuntGame.Networking.Core
                 return;
             }
 
-            LogDebug("Starting Server...");
-            m_NetworkManager.StartServer();
+            LogDebug("Starting Server with automatic port detection...");
+            TryStartServerWithPortRetry();
         }
 
         /// <summary>
         /// Joins an existing game as a client.
-        /// Make sure to set the server address in Unity Transport before calling this.
+        /// Automatically tries multiple ports to find the host.
         /// </summary>
         public void StartClient()
         {
@@ -98,8 +125,8 @@ namespace ManhuntGame.Networking.Core
                 return;
             }
 
-            LogDebug("Starting Client...");
-            m_NetworkManager.StartClient();
+            LogDebug($"Starting Client... Will try ports {basePort} to {basePort + portRetryAttempts - 1}");
+            TryStartClientWithPortRetry();
         }
 
         /// <summary>
@@ -113,11 +140,202 @@ namespace ManhuntGame.Networking.Core
 
         #endregion
 
+        #region Port Retry Logic
+
+        /// <summary>
+        /// Tries to start host, retrying with different ports if binding fails.
+        /// </summary>
+        private void TryStartHostWithPortRetry()
+        {
+            for (int attempt = 0; attempt < portRetryAttempts; attempt++)
+            {
+                m_CurrentPort = (ushort)(basePort + attempt);
+                SetTransportPort(m_CurrentPort);
+
+                LogDebug($"Attempt {attempt + 1}/{portRetryAttempts}: Trying to start Host on port {m_CurrentPort}...");
+
+                bool success = m_NetworkManager.StartHost();
+
+                if (success)
+                {
+                    LogDebug($"✓ Successfully started Host on port {m_CurrentPort}!");
+                    LogDebug($"→ Clients should connect to: {serverAddress}:{m_CurrentPort}");
+                    return;
+                }
+                else
+                {
+                    LogDebug($"✗ Failed to start Host on port {m_CurrentPort}. Trying next port...");
+
+                    // Shutdown failed attempt
+                    if (m_NetworkManager.IsListening)
+                    {
+                        m_NetworkManager.Shutdown();
+                    }
+                }
+            }
+
+            // All attempts failed
+            Debug.LogError($"[NetworkManagerController] Failed to start Host after {portRetryAttempts} attempts. " +
+                          $"Tried ports {basePort} to {basePort + portRetryAttempts - 1}. " +
+                          $"Please close other Unity instances or change the base port.");
+        }
+
+        /// <summary>
+        /// Tries to start server, retrying with different ports if binding fails.
+        /// </summary>
+        private void TryStartServerWithPortRetry()
+        {
+            for (int attempt = 0; attempt < portRetryAttempts; attempt++)
+            {
+                m_CurrentPort = (ushort)(basePort + attempt);
+                SetTransportPort(m_CurrentPort);
+
+                LogDebug($"Attempt {attempt + 1}/{portRetryAttempts}: Trying to start Server on port {m_CurrentPort}...");
+
+                bool success = m_NetworkManager.StartServer();
+
+                if (success)
+                {
+                    LogDebug($"✓ Successfully started Server on port {m_CurrentPort}!");
+                    LogDebug($"→ Clients should connect to: {serverAddress}:{m_CurrentPort}");
+                    return;
+                }
+                else
+                {
+                    LogDebug($"✗ Failed to start Server on port {m_CurrentPort}. Trying next port...");
+
+                    // Shutdown failed attempt
+                    if (m_NetworkManager.IsListening)
+                    {
+                        m_NetworkManager.Shutdown();
+                    }
+                }
+            }
+
+            // All attempts failed
+            Debug.LogError($"[NetworkManagerController] Failed to start Server after {portRetryAttempts} attempts. " +
+                          $"Tried ports {basePort} to {basePort + portRetryAttempts - 1}. " +
+                          $"Please close other Unity instances or change the base port.");
+        }
+
+        /// <summary>
+        /// Tries to connect as client, retrying with different ports to find the host.
+        /// </summary>
+        private void TryStartClientWithPortRetry()
+        {
+            for (int attempt = 0; attempt < portRetryAttempts; attempt++)
+            {
+                m_CurrentPort = (ushort)(basePort + attempt);
+                SetTransportAddress(serverAddress, m_CurrentPort);
+
+                LogDebug($"Attempt {attempt + 1}/{portRetryAttempts}: Trying to connect to {serverAddress}:{m_CurrentPort}...");
+
+                bool success = m_NetworkManager.StartClient();
+
+                if (success)
+                {
+                    LogDebug($"✓ Client started! Attempting connection to {serverAddress}:{m_CurrentPort}");
+
+                    // Give it time to connect
+                    StartCoroutine(CheckClientConnection(attempt));
+                    return;
+                }
+                else
+                {
+                    LogDebug($"✗ Failed to start client. Trying next port...");
+                }
+            }
+
+            // All attempts failed
+            Debug.LogError($"[NetworkManagerController] Failed to start Client after {portRetryAttempts} attempts. " +
+                          $"Tried ports {basePort} to {basePort + portRetryAttempts - 1}. " +
+                          $"Make sure Host is running!");
+        }
+
+        /// <summary>
+        /// Checks if client successfully connected, retries if not.
+        /// </summary>
+        private System.Collections.IEnumerator CheckClientConnection(int attemptNumber)
+        {
+            float timeout = 3f;
+            float elapsed = 0f;
+
+            while (elapsed < timeout)
+            {
+                if (m_NetworkManager.IsConnectedClient)
+                {
+                    LogDebug($"✓ Successfully connected to server!");
+                    yield break;
+                }
+
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+
+            // Connection timeout - try next port
+            LogDebug($"✗ Connection timeout on port {m_CurrentPort}. Trying next port...");
+            m_NetworkManager.Shutdown();
+
+            // Try next port if we have attempts left
+            if (attemptNumber + 1 < portRetryAttempts)
+            {
+                yield return new WaitForSeconds(0.5f);
+                ushort nextPort = (ushort)(basePort + attemptNumber + 1);
+                SetTransportAddress(serverAddress, nextPort);
+
+                LogDebug($"Trying port {nextPort}...");
+                m_NetworkManager.StartClient();
+                StartCoroutine(CheckClientConnection(attemptNumber + 1));
+            }
+            else
+            {
+                Debug.LogError($"[NetworkManagerController] Could not connect to server after trying all ports. " +
+                              $"Make sure the Host is running and using one of these ports: {basePort}-{basePort + portRetryAttempts - 1}");
+            }
+        }
+
+        /// <summary>
+        /// Sets the port on the Unity Transport component.
+        /// </summary>
+        private void SetTransportPort(ushort port)
+        {
+            if (m_UnityTransport == null) return;
+
+            // Access the ConnectionData struct and modify the port
+            var connectionData = m_UnityTransport.ConnectionData;
+            connectionData.Port = port;
+            m_UnityTransport.ConnectionData = connectionData;
+
+            LogDebug($"Transport port set to: {port}");
+        }
+
+        /// <summary>
+        /// Sets the address and port for client connections.
+        /// </summary>
+        private void SetTransportAddress(string address, ushort port)
+        {
+            if (m_UnityTransport == null) return;
+
+            // Access the ConnectionData struct and modify address and port
+            var connectionData = m_UnityTransport.ConnectionData;
+            connectionData.Address = address;
+            connectionData.Port = port;
+            m_UnityTransport.ConnectionData = connectionData;
+
+            LogDebug($"Transport set to connect to: {address}:{port}");
+        }
+
+        #endregion
+
         #region Network Event Callbacks
 
         private void OnServerStarted()
         {
-            LogDebug($"Server started successfully. Max players: {maxPlayers}");
+            LogDebug($"Server started successfully on port {m_CurrentPort}. Max players: {maxPlayers}");
+            LogDebug($"═══════════════════════════════════════");
+            LogDebug($"   HOST IS READY ON PORT {m_CurrentPort}");
+            LogDebug($"   Clients connect to: {serverAddress}:{m_CurrentPort}");
+            LogDebug($"═══════════════════════════════════════");
         }
 
         private void OnClientConnected(ulong clientId)
@@ -155,6 +373,20 @@ namespace ManhuntGame.Networking.Core
                 Debug.Log($"[NetworkManagerController] {message}");
             }
         }
+
+        #endregion
+
+        #region Public Getters
+
+        /// <summary>
+        /// Gets the current port the server is running on.
+        /// </summary>
+        public ushort GetCurrentPort() => m_CurrentPort;
+
+        /// <summary>
+        /// Gets the server address clients should connect to.
+        /// </summary>
+        public string GetServerAddress() => serverAddress;
 
         #endregion
     }

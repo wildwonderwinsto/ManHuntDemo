@@ -4,10 +4,8 @@ using UnityEngine.InputSystem;
 namespace Game.Player
 {
     /// <summary>
-    /// Handles horizontal player body rotation (Y-axis).
-    /// Optimized with input caching and debug visualization.
-    /// Compatible with Unity 6 LTS (6000.3.6f1).
-    /// JITTER FIX: Uses LateUpdate() to sync with camera systems.
+    /// Handles horizontal body rotation (Y-axis) based on Mouse X input.
+    /// Works in conjunction with CameraVerticalLook (X-axis) for full FPS look controls.
     /// </summary>
     [RequireComponent(typeof(PlayerInput))]
     public class PlayerBodyRotation : MonoBehaviour
@@ -17,117 +15,76 @@ namespace Game.Player
         [Range(1f, 100f)]
         public float sensitivityX = 25f;
 
-        [Tooltip("Smooth rotation instead of instant (good for controller input).")]
+        [Tooltip("Smooth rotation to reduce jitter.")]
         public bool smoothRotation = false;
 
-        [Tooltip("Rotation smoothing speed (only used if smoothRotation is enabled).")]
+        [Tooltip("Smoothing speed.")]
         [Range(1f, 30f)]
-        public float rotationSmoothSpeed = 15f;
+        public float smoothSpeed = 20f;
 
-        [Header("Debug")]
-        [Tooltip("Show current rotation angle in console.")]
-        public bool showDebugInfo = false;
+        // Internal state
+        private float _currentYRotation;
+        private float _targetYRotation;
 
-        [Header("Runtime Info (Read-Only)")]
-        [Tooltip("Current Y rotation of the player.")]
-        [SerializeField] private float _currentYRotation;
-
-        // Cached references
+        // Components
         private PlayerInput _playerInput;
         private InputAction _lookAction;
 
-        // Rotation state
-        private float _targetYRotation;
-
         private void Awake()
         {
-            // Cache PlayerInput component
             _playerInput = GetComponent<PlayerInput>();
 
             if (_playerInput == null)
             {
-                Debug.LogError("PlayerBodyRotation: No PlayerInput component found!");
+                Debug.LogError("PlayerBodyRotation: No PlayerInput found!");
                 enabled = false;
                 return;
             }
 
-            // Cache Look action
+            // Cache the Look action
             _lookAction = _playerInput.actions["Look"];
 
-            if (_lookAction == null)
-            {
-                Debug.LogError("PlayerBodyRotation: 'Look' action not found in Input Actions!");
-                enabled = false;
-                return;
-            }
-
-            // Initialize rotation values
-            _currentYRotation = transform.eulerAngles.y;
+            // Initialize rotation to current transform
+            _currentYRotation = transform.localEulerAngles.y;
             _targetYRotation = _currentYRotation;
-
-            // Lock cursor
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
         }
 
-        // JITTER FIX: Changed from Update() to LateUpdate()
-        // This ensures body rotation happens in sync with camera rotation systems
-        private void LateUpdate()
+        private void Update()
         {
-            HandleHorizontalRotation();
-            UpdateDebugInfo();
+            HandleRotation();
         }
 
-        /// <summary>
-        /// Handles horizontal (Y-axis) rotation of the player body.
-        /// </summary>
-        private void HandleHorizontalRotation()
+        private void HandleRotation()
         {
-            // Read input (cached action reference - no repeated string lookups)
-            Vector2 lookInput = _lookAction.ReadValue<Vector2>();
-            float mouseX = lookInput.x * sensitivityX * Time.deltaTime;
+            if (_lookAction == null) return;
+
+            // Read Mouse X input
+            float mouseX = _lookAction.ReadValue<Vector2>().x;
+
+            // Calculate rotation amount
+            float rotationAmount = mouseX * sensitivityX * Time.deltaTime;
 
             if (smoothRotation)
             {
-                // Smooth rotation (good for controllers or cinematic feel)
-                _targetYRotation += mouseX;
-                _currentYRotation = Mathf.LerpAngle(_currentYRotation, _targetYRotation, rotationSmoothSpeed * Time.deltaTime);
-                transform.rotation = Quaternion.Euler(0f, _currentYRotation, 0f);
+                _targetYRotation += rotationAmount;
+                _currentYRotation = Mathf.Lerp(_currentYRotation, _targetYRotation, smoothSpeed * Time.deltaTime);
             }
             else
             {
-                // Instant rotation (standard FPS feel)
-                transform.Rotate(Vector3.up * mouseX);
-                _currentYRotation = transform.eulerAngles.y;
+                _currentYRotation += rotationAmount;
+                _targetYRotation = _currentYRotation; // Keep synced
             }
+
+            // Apply rotation to the body (Y-axis only)
+            transform.localRotation = Quaternion.Euler(0f, _currentYRotation, 0f);
         }
 
         /// <summary>
-        /// Updates debug information for inspector display.
+        /// Public API for diagnostics and other scripts
         /// </summary>
-        private void UpdateDebugInfo()
+        public float GetCurrentYRotation()
         {
-            if (showDebugInfo && Mathf.Abs(_lookAction.ReadValue<Vector2>().x) > 0.01f)
-            {
-                Debug.Log($"Player Y Rotation: {_currentYRotation:F1}°");
-            }
+            return _currentYRotation;
         }
-
-        #region Public API
-        /// <summary>
-        /// Gets the current Y rotation of the player.
-        /// </summary>
-        public float GetCurrentYRotation() => _currentYRotation;
-
-        /// <summary>
-        /// Sets the player's Y rotation directly (useful for teleports/cutscenes).
-        /// </summary>
-        public void SetYRotation(float angle)
-        {
-            _currentYRotation = angle;
-            _targetYRotation = angle;
-            transform.rotation = Quaternion.Euler(0f, angle, 0f);
-        }
-        #endregion
     }
 }

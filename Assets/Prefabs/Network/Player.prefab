@@ -104,6 +104,7 @@ GameObject:
   - component: {fileID: 7794089944874624547}
   - component: {fileID: 4898560187408995038}
   - component: {fileID: 6064398487816283603}
+  - component: {fileID: 5642631637237450427}
   m_Layer: 0
   m_Name: Camera
   m_TagString: Untagged
@@ -261,6 +262,14 @@ MonoBehaviour:
   maxXRotation: 90
   showDebugInfo: 0
   _currentXRotation: 0
+--- !u!81 &5642631637237450427
+AudioListener:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5306443946544360440}
+  m_Enabled: 1
 --- !u!1 &6288598554570963763
 GameObject:
   m_ObjectHideFlags: 0
@@ -344,10 +353,10 @@ GameObject:
   - component: {fileID: 3594422597183177516}
   - component: {fileID: 903409441046235706}
   - component: {fileID: 1924824267697102304}
+  - component: {fileID: 3562054453705334199}
   - component: {fileID: 7753694269985581768}
   - component: {fileID: 4300115548883305159}
   - component: {fileID: 3911403119416871618}
-  - component: {fileID: 3562054453705334199}
   - component: {fileID: 6469846894064133657}
   - component: {fileID: 7628672845707136225}
   - component: {fileID: 4001990767730777209}
@@ -533,6 +542,31 @@ MonoBehaviour:
   m_DefaultActionMap: Player
   m_SplitScreenIndex: -1
   m_Camera: {fileID: 0}
+--- !u!114 &3562054453705334199
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7357582596491454735}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
+  GlobalObjectIdHash: 292676444
+  InScenePlacedSourceGlobalObjectIdHash: 292676444
+  DeferredDespawnTick: 0
+  Ownership: 1
+  AlwaysReplicateAsRoot: 0
+  SynchronizeTransform: 1
+  ActiveSceneSynchronization: 0
+  SceneMigrationSynchronization: 0
+  SpawnWithObservers: 1
+  DontDestroyWithOwner: 0
+  AutoObjectParentSync: 1
+  SyncOwnerTransformWhenParented: 1
+  AllowOwnerToParent: 0
 --- !u!114 &7753694269985581768
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -545,25 +579,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3b12750cfc3f63f458c6740254035d11, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerMovement
+  ShowTopMostFoldoutHeaderGroup: 1
   speed: 8
   sprintSpeed: 12
   jumpForce: 10
   fallGravityMultiplier: 2.5
   coyoteTime: 0.15
-  jumpBufferTime: 0.15
-  headBonkDownforce: 12
-  ceilingCheckDistance: 0.3
-  ceilingMask:
-    serializedVersion: 2
-    m_Bits: 1
-  groundDrag: 6
-  airDrag: 6
   groundCheck: {fileID: 2268131728241835776}
   groundDistance: 0.3
   groundMask:
     serializedVersion: 2
     m_Bits: 64
-  showDebugInfo: 0
 --- !u!114 &4300115548883305159
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -600,34 +626,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Game.Player.PlayerBodyRotation
   sensitivityX: 25
   smoothRotation: 0
-  rotationSmoothSpeed: 15
-  showDebugInfo: 0
-  _currentYRotation: 0
---- !u!114 &3562054453705334199
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7357582596491454735}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 1021562930
-  InScenePlacedSourceGlobalObjectIdHash: 292676444
-  DeferredDespawnTick: 0
-  Ownership: 1
-  AlwaysReplicateAsRoot: 0
-  SynchronizeTransform: 1
-  ActiveSceneSynchronization: 0
-  SceneMigrationSynchronization: 0
-  SpawnWithObservers: 1
-  DontDestroyWithOwner: 0
-  AutoObjectParentSync: 1
-  SyncOwnerTransformWhenParented: 1
-  AllowOwnerToParent: 0
+  smoothSpeed: 20
 --- !u!33 &6469846894064133657
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -702,7 +701,8 @@ MonoBehaviour:
   playerInputScript: {fileID: 1924824267697102304}
   playerBodyRotationScript: {fileID: 3911403119416871618}
   playerCamera: {fileID: 1911558538646356831}
-  showDebugLogs: 0
+  playerListener: {fileID: 5642631637237450427}
+  cameraLookScript: {fileID: 3911403119416871618}
 --- !u!114 &3550763088031039490
 MonoBehaviour:
   m_ObjectHideFlags: 0

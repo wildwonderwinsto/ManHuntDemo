@@ -1,117 +1,65 @@
 using Unity.Netcode;
 using UnityEngine;
+using Game.Player; // Needed to reference CameraVerticalLook
+using UnityEngine.InputSystem;
 
 namespace ManhuntGame.Networking.Player
 {
-    /// <summary>
-    /// Handles network ownership and controls which player can control which character.
-    /// This wraps your existing movement scripts to only allow the owner to control their player.
-    /// </summary>
     public class NetworkPlayerController : NetworkBehaviour
     {
         [Header("Components")]
-        [SerializeField] private MonoBehaviour playerMovementScript;  // Your existing PlayerMovement script
-        [SerializeField] private MonoBehaviour playerInputScript;     // Your existing PlayerInput script
-        [SerializeField] private MonoBehaviour playerBodyRotationScript; // Your existing rotation script
-        [SerializeField] private Camera playerCamera;                 // Reference to player's camera
+        [SerializeField] private MonoBehaviour playerMovementScript;
+        [SerializeField] private MonoBehaviour playerInputScript;
+        [SerializeField] private MonoBehaviour playerBodyRotationScript;
 
-        [Header("Debug")]
-        [SerializeField] private bool showDebugLogs = true;
+        [Header("Camera Components")]
+        [SerializeField] private Camera playerCamera;
+        [SerializeField] private AudioListener playerListener;
+        [SerializeField] private MonoBehaviour cameraLookScript; // Reference to CameraVerticalLook
 
         private void Awake()
         {
             // Auto-find components if not assigned
-            if (playerMovementScript == null)
-                playerMovementScript = GetComponent<MonoBehaviour>(); // You'll need to assign this in Inspector
+            if (playerMovementScript == null) playerMovementScript = GetComponent<PlayerMovement>();
+            if (playerInputScript == null) playerInputScript = GetComponent<PlayerInput>();
+            if (playerBodyRotationScript == null) playerBodyRotationScript = GetComponent<PlayerBodyRotation>();
 
-            if (playerCamera == null)
-                playerCamera = GetComponentInChildren<Camera>();
+            // Find Camera stuff
+            if (playerCamera == null) playerCamera = GetComponentInChildren<Camera>();
+            if (playerListener == null) playerListener = GetComponentInChildren<AudioListener>();
+
+            // Auto-find the look script on the camera
+            if (cameraLookScript == null && playerCamera != null)
+            {
+                cameraLookScript = playerCamera.GetComponent<CameraVerticalLook>();
+            }
         }
 
         public override void OnNetworkSpawn()
         {
             base.OnNetworkSpawn();
 
-            // Only enable controls for the owner of this player
-            if (IsOwner)
+            bool isMine = IsOwner;
+
+            // 1. Setup Camera & Audio (Only for the local player)
+            if (playerCamera) playerCamera.enabled = isMine;
+            if (playerListener) playerListener.enabled = isMine;
+            if (cameraLookScript) cameraLookScript.enabled = isMine;
+
+            // 2. Setup Controls
+            // Movement logic runs on Owner (to send input) AND Server (to process physics)
+            bool enableControls = isMine || IsServer;
+
+            if (playerMovementScript) playerMovementScript.enabled = enableControls;
+            if (playerInputScript) playerInputScript.enabled = enableControls;
+            if (playerBodyRotationScript) playerBodyRotationScript.enabled = enableControls;
+
+            // 3. Cursor Management
+            if (isMine)
             {
-                EnablePlayerControls();
-                LogDebug($"Player {OwnerClientId} spawned - Controls ENABLED (You are the owner)");
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
             }
-            else
-            {
-                DisablePlayerControls();
-                LogDebug($"Player {OwnerClientId} spawned - Controls DISABLED (Not your player)");
-            }
-        }
-
-        /// <summary>
-        /// Enable movement controls for the local player
-        /// </summary>
-        private void EnablePlayerControls()
-        {
-            // Enable your existing movement scripts
-            if (playerMovementScript != null)
-                playerMovementScript.enabled = true;
-
-            if (playerInputScript != null)
-                playerInputScript.enabled = true;
-
-            if (playerBodyRotationScript != null)
-                playerBodyRotationScript.enabled = true;
-
-            // Enable the camera for this player
-            if (playerCamera != null)
-                playerCamera.enabled = true;
-
-            // Lock cursor for gameplay (you can toggle this with ESC)
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-        }
-
-        /// <summary>
-        /// Disable controls for remote players (players you don't own)
-        /// </summary>
-        private void DisablePlayerControls()
-        {
-            // Disable movement scripts for players you don't control
-            if (playerMovementScript != null)
-                playerMovementScript.enabled = false;
-
-            if (playerInputScript != null)
-                playerInputScript.enabled = false;
-
-            if (playerBodyRotationScript != null)
-                playerBodyRotationScript.enabled = false;
-
-            // Disable camera for remote players
-            if (playerCamera != null)
-                playerCamera.enabled = false;
-        }
-
-        private void Update()
-        {
-            // Allow ESC to unlock cursor (useful for testing)
-            // NOTE: You can add ESC key handling using the new Input System in your PlayerInput script
-            // For now, we'll remove this to avoid Input System conflicts
-
-            // To add ESC functionality, add this action to your Input Actions asset:
-            // 1. Open your Input Actions asset
-            // 2. Add new action called "ToggleCursor" 
-            // 3. Bind it to ESC key
-            // 4. Handle it in your PlayerInput script
-        }
-
-        private void LogDebug(string message)
-        {
-            if (showDebugLogs)
-                Debug.Log($"[NetworkPlayerController] {message}");
-        }
-
-        public override void OnNetworkDespawn()
-        {
-            base.OnNetworkDespawn();
-            LogDebug($"Player {OwnerClientId} despawned");
         }
     }
 }
