@@ -362,6 +362,7 @@ GameObject:
   - component: {fileID: 4001990767730777209}
   - component: {fileID: 3550763088031039490}
   - component: {fileID: 7174994472233324988}
+  - component: {fileID: 482588280770362574}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -394,7 +395,7 @@ Rigidbody:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7357582596491454735}
   serializedVersion: 5
-  m_Mass: 1
+  m_Mass: 70
   m_LinearDamping: 0
   m_AngularDamping: 0.05
   m_CenterOfMass: {x: 0, y: 0, z: 0}
@@ -582,6 +583,7 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   speed: 8
   sprintSpeed: 12
+  maxSpeed: 15
   jumpForce: 10
   fallGravityMultiplier: 2.5
   coyoteTime: 0.15
@@ -590,6 +592,9 @@ MonoBehaviour:
   groundMask:
     serializedVersion: 2
     m_Bits: 64
+  maxVelocityMagnitude: 20
+  maxMoveDistancePerFrame: 2
+  enableDebugLogs: 0
 --- !u!114 &4300115548883305159
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -703,6 +708,10 @@ MonoBehaviour:
   playerCamera: {fileID: 1911558538646356831}
   playerListener: {fileID: 5642631637237450427}
   cameraLookScript: {fileID: 3911403119416871618}
+  cameraTiltScript: {fileID: 0}
+  viewBobScript: {fileID: 0}
+  dynamicFOVScript: {fileID: 0}
+  enableDebugLogs: 1
 --- !u!114 &3550763088031039490
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -763,9 +772,28 @@ MonoBehaviour:
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.Components.NetworkRigidbody
   ShowTopMostFoldoutHeaderGroup: 1
   NetworkRigidbodyBaseExpanded: 0
-  UseRigidBodyForMotion: 0
+  UseRigidBodyForMotion: 1
   AutoUpdateKinematicState: 1
   AutoSetKinematicOnDespawn: 1
+--- !u!114 &482588280770362574
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7357582596491454735}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ab4d6e4751de6b14ebf50d372ee2998d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ManhuntGame.Networking.Player.NetworkHealth
+  ShowTopMostFoldoutHeaderGroup: 1
+  maxHealth: 100
+  startingHealth: 100
+  respawnDelay: 5
+  damageInvulnerabilityTime: 0.5
+  friendlyFireEnabled: 0
+  enableDebugLogs: 0
 --- !u!1 &8164253558688058053
 GameObject:
   m_ObjectHideFlags: 0
